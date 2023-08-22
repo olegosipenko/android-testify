@@ -29,6 +29,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import androidx.test.platform.app.InstrumentationRegistry
+import dev.testify.FileLocation
 import dev.testify.ScreenshotRule
 import dev.testify.TestDescription
 import dev.testify.internal.DEFAULT_NAME_FORMAT
@@ -84,9 +85,9 @@ internal open class Reporter(
      * At this point in the execution, Testify can correctly identify the baseline path as all
      * modifications have been applied
      */
-    fun captureOutput(rule: ScreenshotRule<*>) {
+    fun captureOutput(rule: ScreenshotRule<*>, fileLocation: FileLocation) {
         builder.appendLine("baseline_image: assets/${getBaselinePath(rule)}", indent = 8)
-        builder.appendLine("test_image: ${getOutputPath(rule)}", indent = 8)
+        builder.appendLine("test_image: ${getOutputPath(rule, fileLocation)}", indent = 8)
     }
 
     /**
@@ -155,8 +156,8 @@ internal open class Reporter(
         }
 
     @VisibleForTesting
-    internal open fun getOutputPath(rule: ScreenshotRule<*>): String {
-        return getOutputFilePath(context, rule.fileName)
+    internal open fun getOutputPath(rule: ScreenshotRule<*>, fileLocation: FileLocation): String {
+        return getOutputFilePath(context, rule.fileName, fileLocation)
     }
 
     @VisibleForTesting

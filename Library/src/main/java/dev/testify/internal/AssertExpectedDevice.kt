@@ -26,7 +26,6 @@ package dev.testify.internal
 import android.content.Context
 import android.content.res.AssetManager
 import dev.testify.internal.exception.UnexpectedDeviceException
-import dev.testify.internal.extensions.TestInstrumentationRegistry.Companion.isRecordMode
 import dev.testify.internal.output.ROOT_DIR
 import java.io.File
 
@@ -41,7 +40,7 @@ import java.io.File
  * @param context - [Context] of the test instrumentation's package
  * @param testName - The name of the currently running test
  */
-fun assertExpectedDevice(context: Context, testName: String) {
+fun assertExpectedDevice(context: Context, testName: String, isRecordMode: Boolean) {
     if (isRecordMode) return
 
     val expectedDevice = getDeviceDescription(context)

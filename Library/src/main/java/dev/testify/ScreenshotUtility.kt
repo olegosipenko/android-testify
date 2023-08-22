@@ -32,6 +32,8 @@ import android.graphics.BitmapFactory
 import android.os.Debug
 import android.util.Log
 import android.view.View
+import androidx.test.annotation.ExperimentalTestApi
+import androidx.test.core.graphics.writeToTestStorage
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.testify.internal.exception.ScreenshotDirectoryNotFoundException
 import dev.testify.internal.getDeviceDescription
@@ -53,11 +55,11 @@ val preferredBitmapOptions: BitmapFactory.Options
         return options
     }
 
-fun saveBitmapToFile(context: Context, bitmap: Bitmap?, outputFilePath: String): Boolean {
+fun saveBitmapToFile(context: Context, bitmap: Bitmap?, outputFilePath: String, fileLocation: FileLocation): Boolean {
     if (bitmap == null) {
         return false
     }
-    if (assureScreenshotDirectory(context)) {
+    if (assureScreenshotDirectory(context, fileLocation)) {
         Log.d(LOG_TAG, "Writing screenshot to {$outputFilePath}")
         val outputStream = FileOutputStream(outputFilePath)
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
@@ -67,14 +69,14 @@ fun saveBitmapToFile(context: Context, bitmap: Bitmap?, outputFilePath: String):
     } else {
         throw ScreenshotDirectoryNotFoundException(
             useSdCard(InstrumentationRegistry.getArguments()),
-            getOutputDirectoryPath(context).absolutePath
+            getOutputDirectoryPath(context, fileLocation).absolutePath
         )
     }
 }
 
-fun assureScreenshotDirectory(context: Context): Boolean {
+fun assureScreenshotDirectory(context: Context, fileLocation: FileLocation): Boolean {
     var created = true
-    val outputDirectory = getOutputDirectoryPath(context)
+    val outputDirectory = getOutputDirectoryPath(context, fileLocation)
     if (!outputDirectory.exists()) {
         Log.d(LOG_TAG, "Trying to make the directory")
         created = outputDirectory.mkdirs()
@@ -115,10 +117,12 @@ fun loadBaselineBitmapForComparison(context: Context, testName: String): Bitmap?
  * @return A [Bitmap] representing the captured [screenshotView] in [activity]
  *          Will return [null] if there is an error capturing the bitmap.
  */
+@ExperimentalTestApi
 fun createBitmapFromActivity(
     activity: Activity,
     fileName: String,
     captureMethod: CaptureMethod,
+    fileLocation: FileLocation,
     screenshotView: View? = activity.window.decorView
 ): Bitmap? {
     val currentActivityBitmap = arrayOfNulls<Bitmap>(1)
@@ -139,10 +143,16 @@ fun createBitmapFromActivity(
         return null
     }
 
-    val outputPath = getOutputFilePath(activity, fileName)
-    saveBitmapToFile(activity, currentActivityBitmap[0], outputPath)
+    return if (fileLocation == FileLocation.TEST_STORAGE) {
+        currentActivityBitmap[0]?.writeToTestStorage(fileName)
 
-    return loadBitmapFromFile(outputPath, preferredBitmapOptions)
+        currentActivityBitmap[0]
+    } else {
+        val outputPath = getOutputFilePath(activity, fileName, fileLocation)
+        saveBitmapToFile(activity, currentActivityBitmap[0], outputPath, fileLocation)
+
+        loadBitmapFromFile(outputPath, preferredBitmapOptions)
+    }
 }
 
 /**
@@ -153,8 +163,8 @@ fun loadBitmapFromFile(outputPath: String, preferredBitmapOptions: BitmapFactory
     return BitmapFactory.decodeFile(outputPath, preferredBitmapOptions)
 }
 
-fun deleteBitmap(context: Context, fileName: String): Boolean {
-    val file = File(getOutputFilePath(context, fileName))
+fun deleteBitmap(context: Context, fileName: String, fileLocation: FileLocation): Boolean {
+    val file = File(getOutputFilePath(context, fileName, fileLocation))
     return file.delete()
 }
 

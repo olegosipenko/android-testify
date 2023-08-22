@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
+import dev.testify.FileLocation
 import dev.testify.internal.output.getOutputFilePath
 import dev.testify.internal.processor.ParallelPixelProcessor
 import dev.testify.internal.processor.compare.colorspace.calculateDeltaE
@@ -16,7 +17,7 @@ class HighContrastDiff(private val exclusionRects: Set<Rect>) {
     private lateinit var baselineBitmap: Bitmap
     private lateinit var currentBitmap: Bitmap
 
-    fun generate(context: Context) {
+    fun generate(context: Context, fileLocation: FileLocation) {
         val transformResult = ParallelPixelProcessor
             .create()
             .baseline(baselineBitmap)
@@ -48,7 +49,8 @@ class HighContrastDiff(private val exclusionRects: Set<Rect>) {
         saveBitmapToFile(
             context = context,
             bitmap = transformResult.createBitmap(),
-            outputFilePath = getOutputFilePath(context, "$fileName.diff")
+            outputFilePath = getOutputFilePath(context, "$fileName.diff", fileLocation),
+            fileLocation
         )
     }
 

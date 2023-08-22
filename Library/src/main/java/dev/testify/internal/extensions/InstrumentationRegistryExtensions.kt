@@ -32,17 +32,6 @@ class TestInstrumentationRegistry {
     companion object {
 
         /**
-         * Returns true if the current test run is in record mode.
-         * When in record mode, differences will be reported, but ignored.
-         * Tests will not fail and all baselines will be updated.
-         */
-        val isRecordMode: Boolean
-            get() {
-                val extras = InstrumentationRegistry.getArguments()
-                return extras.getString("isRecordMode") == "true"
-            }
-
-        /**
          * Prints a string to the instrumentation output stream (test log).
          *
          * @param str - A string to print to the instrumentation stream.

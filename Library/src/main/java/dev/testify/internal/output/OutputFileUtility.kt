@@ -27,6 +27,7 @@ package dev.testify.internal.output
 import android.content.Context
 import android.os.Bundle
 import androidx.test.platform.app.InstrumentationRegistry
+import dev.testify.FileLocation
 import dev.testify.internal.DEFAULT_FOLDER_FORMAT
 import dev.testify.internal.DeviceStringFormatter
 import dev.testify.internal.formatDeviceString
@@ -49,8 +50,8 @@ private fun getPathRelativeToRoot(subpath: String): String {
     return "$ROOT_DIR/$subpath/"
 }
 
-fun getOutputDirectoryPath(context: Context): File {
-    val path: File = if (useSdCard(InstrumentationRegistry.getArguments())) {
+fun getOutputDirectoryPath(context: Context, fileLocation: FileLocation): File {
+    val path: File = if (fileLocation == FileLocation.SD_CARD) {
         val sdCard = context.getExternalFilesDir(null)
         File("${sdCard?.absolutePath}/$SDCARD_DESTINATION_DIR")
     } else {
@@ -64,10 +65,15 @@ fun getOutputDirectoryPath(context: Context): File {
     return File(path, "$ROOT_DIR/$deviceFormattedDirectory")
 }
 
-fun getOutputFilePath(context: Context, fileName: String, extension: String = PNG_EXTENSION): String {
-    return "${getOutputDirectoryPath(context).path}/$fileName$extension"
+fun getOutputFilePath(
+    context: Context,
+    fileName: String,
+    fileLocation: FileLocation,
+    extension: String = PNG_EXTENSION
+): String {
+    return "${getOutputDirectoryPath(context, fileLocation).path}/$fileName$extension"
 }
 
-fun doesOutputFileExist(context: Context, filename: String): Boolean {
-    return File(getOutputFilePath(context, filename)).exists()
+fun doesOutputFileExist(context: Context, filename: String, fileLocation: FileLocation): Boolean {
+    return File(getOutputFilePath(context, filename, fileLocation)).exists()
 }

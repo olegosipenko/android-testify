@@ -26,6 +26,7 @@
 
 package dev.testify
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -40,6 +41,7 @@ import androidx.annotation.IdRes
 import androidx.annotation.LayoutRes
 import androidx.annotation.UiThread
 import androidx.annotation.VisibleForTesting
+import androidx.test.annotation.ExperimentalTestApi
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import androidx.test.rule.ActivityTestRule
 import dev.testify.annotation.ScreenshotInstrumentation
@@ -63,7 +65,6 @@ import dev.testify.internal.exception.ScreenshotTestIgnoredException
 import dev.testify.internal.exception.ViewModificationException
 import dev.testify.internal.extensions.TestInstrumentationRegistry.Companion.getModuleName
 import dev.testify.internal.extensions.TestInstrumentationRegistry.Companion.instrumentationPrintln
-import dev.testify.internal.extensions.TestInstrumentationRegistry.Companion.isRecordMode
 import dev.testify.internal.extensions.cyan
 import dev.testify.internal.extensions.getScreenshotAnnotationName
 import dev.testify.internal.extensions.isInvokedFromPlugin
@@ -141,6 +142,8 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
     private var extrasProvider: ExtrasProvider? = null
     private var captureMethod: CaptureMethod? = null
     private var compareMethod: CompareMethod? = null
+    private var fileLocation: FileLocation = FileLocation.DATA
+    private var isRecordMode: Boolean = false
 
     @VisibleForTesting
     internal var reporter: Reporter? = null
@@ -155,7 +158,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
     }
 
     val outputFileExists: Boolean
-        get() = doesOutputFileExist(activity, outputFileName)
+        get() = doesOutputFileExist(activity, outputFileName, fileLocation)
 
     private fun isRunningOnUiThread(): Boolean {
         return Looper.getMainLooper().thread == Thread.currentThread()
@@ -192,6 +195,11 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
         return this
     }
 
+    fun setRecordModeEnabled(isRecordMode: Boolean): ScreenshotRule<T> {
+        this.isRecordMode = isRecordMode
+        return this
+    }
+
     fun withExperimentalFeatureEnabled(feature: TestifyFeatures): ScreenshotRule<T> {
         feature.setEnabled(true)
         return this
@@ -222,6 +230,11 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
      */
     fun setCompareMethod(compareMethod: CompareMethod?): ScreenshotRule<T> {
         this.compareMethod = compareMethod
+        return this
+    }
+
+    fun setFileLocation(fileLocation: FileLocation): ScreenshotRule<T> {
+        this.fileLocation = fileLocation
         return this
     }
 
@@ -298,6 +311,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
 
     @get:LayoutRes
     private val TestifyLayout.resolvedLayoutId: Int
+        @SuppressLint("DiscouragedApi")
         get() {
             if (this.layoutResName.isNotEmpty()) {
                 return getInstrumentation().targetContext.resources?.getIdentifier(layoutResName, null, null)
@@ -426,16 +440,19 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
      * @return A [Bitmap] representing the captured [screenshotView] in [activity]
      *          Will return [null] if there is an error capturing the bitmap.
      */
+    @ExperimentalTestApi
     open fun takeScreenshot(
         activity: Activity,
         fileName: String,
         screenshotView: View?,
+        fileLocation: FileLocation,
         captureMethod: CaptureMethod = getCaptureMethod(activity)
     ): Bitmap? {
         return createBitmapFromActivity(
             activity,
             fileName,
             captureMethod,
+            fileLocation,
             screenshotView
         )
     }
@@ -453,7 +470,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
             .baseline(baselineBitmap)
             .current(currentBitmap)
             .exactness(configuration.exactness)
-            .generate(context = activity)
+            .generate(context = activity, fileLocation)
     }
 
     fun getBitmapCompare(): CompareMethod {
@@ -483,6 +500,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
         return bitmapCompare(baselineBitmap, currentBitmap)
     }
 
+    @SuppressLint("UnsafeOptInUsageError", "VisibleForTests")
     fun assertSame() {
         assertSameInvoked = true
         addScreenshotObserver(this)
@@ -503,7 +521,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
         try {
             try {
                 val description = getInstrumentation().testDescription
-                reporter?.captureOutput(this)
+                reporter?.captureOutput(this, fileLocation)
                 outputFileName = formatDeviceString(
                     DeviceStringFormatter(
                         testContext,
@@ -527,7 +545,8 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
                 val currentBitmap = takeScreenshot(
                     activity,
                     outputFileName,
-                    screenshotView
+                    screenshotView,
+                    fileLocation
                 ) ?: throw FailedToCaptureBitmapException()
 
                 screenshotLifecycleObservers.forEach { it.afterScreenshot(activity, currentBitmap) }
@@ -536,7 +555,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
                     Thread.sleep(LAYOUT_INSPECTION_TIME_MS.toLong())
                 }
 
-                assertExpectedDevice(testContext, description.name)
+                assertExpectedDevice(testContext, description.name, isRecordMode)
 
                 val baselineBitmap = loadBaselineBitmapForComparison(testContext, description.name)
                     ?: if (isRecordMode) {
@@ -562,7 +581,7 @@ open class ScreenshotRule<T : Activity> @JvmOverloads constructor(
                 if (compareBitmaps(baselineBitmap, currentBitmap)) {
                     assertTrue(
                         "Could not delete cached bitmap ${description.name}",
-                        deleteBitmap(activity, outputFileName)
+                        deleteBitmap(activity, outputFileName, fileLocation)
                     )
                 } else {
                     if (TestifyFeatures.GenerateDiffs.isEnabled(activity)) {
