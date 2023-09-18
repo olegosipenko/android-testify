@@ -48,13 +48,20 @@ fun assertExpectedDevice(context: Context, testName: String) {
     val assetManager: AssetManager = context.assets
     val root: String = SCREENSHOT_DIR
 
+    var badConfiguration: String? = null
     assetManager.list(root)?.forEach { configuration ->
         val baselines = assetManager.list("$root/$configuration")
         baselines?.forEach { baseline ->
             if (File(baseline).nameWithoutExtension == testName) {
-                if (configuration != expectedDevice)
-                    throw UnexpectedDeviceException(currentDevice = configuration, expectedDevice = expectedDevice)
+                if (configuration != expectedDevice) {
+                    badConfiguration = configuration
+                } else {
+                    return
+                }
             }
         }
+    }
+    badConfiguration?.let {
+        throw UnexpectedDeviceException(currentDevice = it, expectedDevice = expectedDevice)
     }
 }
