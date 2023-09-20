@@ -1,5 +1,13 @@
 # Testify Change Log
 
+## Unreleased
+
+### Library
+
+#### Fixed
+
+- [#163](https://github.com/ndtp/android-testify/issues/163): Do not throw UnexpectedDeviceException if an expected baseline exists
+
 ## 2.0.0-beta03
 
 ### All Projects
